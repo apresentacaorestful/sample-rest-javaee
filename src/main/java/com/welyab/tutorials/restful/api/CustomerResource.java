@@ -1,6 +1,9 @@
 package com.welyab.tutorials.restful.api;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -27,8 +30,11 @@ public class CustomerResource {
 
     @GET
     @Path("{customerCode}")
-    public Customer get(@PathParam("customerCode") String customerCode) {
-	return customerService.get(customerCode);
+    public Customer get(@PathParam("customerCode") String customerCode, @Context UriInfo uriInfo) {
+	Customer customer = customerService.get(customerCode);
+	customer.setSelf(getSelfLink(customer, uriInfo));
+	customer.setDelete(getDeleteLink(customer, uriInfo));
+	return customer;
     }
 
     @GET
@@ -36,8 +42,14 @@ public class CustomerResource {
 	    MediaType.APPLICATION_JSON,
 	    MediaType.APPLICATION_XML
     })
-    public List<Customer> listCustomers() {
-	return customerService.getCustomers();
+    public List<Customer> listCustomers(@Context UriInfo uriInfo) {
+	return customerService.getCustomers()
+		.stream()
+		.peek(c -> {
+		    c.setSelf(getSelfLink(c, uriInfo));
+		    c.setDelete(getDeleteLink(c, uriInfo));
+		})
+		.collect(Collectors.toList());
     }
 
     @POST
@@ -45,12 +57,10 @@ public class CustomerResource {
 	    MediaType.APPLICATION_JSON,
 	    MediaType.APPLICATION_XML
     })
-    public Response add(Customer customer, @Context UriInfo uriInfo) {
+    public Response add(Customer customer, @Context UriInfo uriInfo) throws URISyntaxException {
 	customerService.addCostumer(customer);
 	return Response.created(
-		uriInfo.getAbsolutePathBuilder()
-			.path(customer.getCode())
-			.build()
+		new URI(getSelfLink(customer, uriInfo).getLink())
 	).build();
     }
 
@@ -69,5 +79,21 @@ public class CustomerResource {
     public Response delete(@PathParam("customerCode") String customerCode) {
 	customerService.removeCustomer(customerCode);
 	return Response.noContent().build();
+    }
+
+    private com.welyab.tutorials.restful.api.Link getDeleteLink(Customer customer, UriInfo uriInfo) {
+	URI selfUri = uriInfo
+		.getAbsolutePathBuilder()
+		.path(customer.getCode())
+		.build();
+	return new com.welyab.tutorials.restful.api.Link(selfUri.toString(), "getBook", "DELETE");
+    }
+
+    private com.welyab.tutorials.restful.api.Link getSelfLink(Customer customer, UriInfo uriInfo) {
+	URI selfUri = uriInfo
+		.getAbsolutePathBuilder()
+		.path(customer.getCode())
+		.build();
+	return new com.welyab.tutorials.restful.api.Link(selfUri.toString(), "getBook", "GET");
     }
 }
