@@ -17,6 +17,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import com.welyab.tutorials.restful.Customer;
@@ -30,11 +31,26 @@ public class CustomerResource {
 
     @GET
     @Path("{customerCode}")
-    public Customer get(@PathParam("customerCode") String customerCode, @Context UriInfo uriInfo) {
-	Customer customer = customerService.get(customerCode);
+    @Produces({
+	    MediaType.APPLICATION_JSON,
+	    MediaType.APPLICATION_XML
+    })
+    public Response get(@PathParam("customerCode") String customerCode, @Context UriInfo uriInfo) {
+	Customer customer = null;
+	try {
+	    customer = customerService.get(customerCode);
+	} catch (IllegalArgumentException e) {
+	    return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+	}
+
+	if (customer == null) {
+	    return Response.status(Status.NOT_FOUND).build();
+	}
+
 	customer.setSelf(getSelfLink(customer, uriInfo));
 	customer.setDelete(getDeleteLink(customer, uriInfo));
-	return customer;
+
+	return Response.status(Status.OK).entity(customer).build();
     }
 
     @GET
